@@ -1,4 +1,3 @@
-%%writefile app.py
 """
 Streamlit entry point for the 3D NBA shot visualization app.
 
