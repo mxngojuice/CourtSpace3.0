@@ -81,7 +81,7 @@ selected_seasons = available_seasons[min_i : max_i + 1]
 st.session_state.season_min = season_min
 st.session_state.season_max = season_max
 
-sample = st.sidebar.slider("Max shots to display", 100, 3000, 1000, step=100)
+sample = st.sidebar.slider("Max shots to display", 100, 5000, 1000, step=100)
 
 show_heatmap = st.sidebar.checkbox("Show Hot/Cold Zones (vs league)", value=False)
 vlim = st.sidebar.slider("Heatmap scale (±FG% points)", 5, 25, 15, step=1) / 100.0
