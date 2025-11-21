@@ -1,3 +1,4 @@
+%%writefile app.py
 """
 Streamlit entry point for the 3D NBA shot visualization app.
 
@@ -50,7 +51,7 @@ if "loaded_key" not in st.session_state:
     st.session_state.season_min = default_season
     st.session_state.season_max = default_season
 
-# Form
+# form
 with st.sidebar.form("dataset_picker"):
     sel_player = st.selectbox("Player", available_players, index=0)
 
@@ -68,10 +69,18 @@ with st.sidebar.form("dataset_picker"):
         index=available_seasons.index(st.session_state.season_max),
     )
 
+    season_type = st.selectbox(
+        "Season type",
+        ["Regular Season", "Playoffs"],
+        index=0,
+    )
+
     submitted = st.form_submit_button("Update Visualization")
 
+# ---- validate and build season range ----
 min_i = available_seasons.index(season_min)
 max_i = available_seasons.index(season_max)
+
 if min_i > max_i:
     st.error("Invalid season range: Season (min) must be earlier than Season (max).")
     st.stop()
@@ -81,6 +90,7 @@ selected_seasons = available_seasons[min_i : max_i + 1]
 st.session_state.season_min = season_min
 st.session_state.season_max = season_max
 
+# ---- Auto-update controls (outside the form) ----
 sample = st.sidebar.slider("Max shots to display", 100, 5000, 1000, step=100)
 
 show_heatmap = st.sidebar.checkbox("Show Hot/Cold Zones (vs league)", value=False)
@@ -106,31 +116,33 @@ q4 = st.sidebar.checkbox("Q4", value=True)
 ot = st.sidebar.checkbox("OT", value=True)
 
 periods = []
-if q1:
-    periods.append(1)
-if q2:
-    periods.append(2)
-if q3:
-    periods.append(3)
-if q4:
-    periods.append(4)
-if ot:
-    periods.append(5)
+if q1: periods.append(1)
+if q2: periods.append(2)
+if q3: periods.append(3)
+if q4: periods.append(4)
+if ot: periods.append(5)
 
-# Fetch data only when the form is submitted with a new key
-requested_key = (sel_player, season_min, season_max)
+# ----------------------------
+# Fetch data ONLY when the form is submitted with a new key
+# ----------------------------
+requested_key = (sel_player, season_min, season_max, season_type)
 
 if submitted and requested_key != st.session_state.loaded_key:
-    with st.spinner(f"Loading shot data for {sel_player} — {season_min} to {season_max}…"):
+    with st.spinner(
+        f"Loading shot data for {sel_player} — {season_min} to {season_max} ({season_type})…"
+    ):
         if len(selected_seasons) > 1:
-            player_df, league_df = load_shotlog_multi(sel_player, selected_seasons)
+            player_df, league_df = load_shotlog_multi(
+                sel_player, selected_seasons, season_type=season_type
+            )
         else:
-            player_df, league_df = load_shotlog(sel_player, selected_seasons[0])
+            player_df, league_df = load_shotlog(
+                sel_player, selected_seasons[0], season_type=season_type
+            )
 
         st.session_state.player_df = player_df
         st.session_state.league_df = league_df
         st.session_state.loaded_key = requested_key
-
 
 tabs = st.tabs(["Visualizer", "About", "Filters", "Project Team"])
 
@@ -310,7 +322,7 @@ if st.session_state.player_df is None:
     st.stop()
 
 # At this point, we know data is available in session state
-loaded_player, loaded_min, loaded_max = st.session_state.loaded_key
+loaded_player, loaded_min, loaded_max, _ = st.session_state.loaded_key
 player_df = st.session_state.player_df
 league_df = st.session_state.league_df
 
