@@ -1,4 +1,3 @@
-%%writefile src/data_io.py
 """
 Data access helpers for Streamlit app:
 - Active players (cached)
