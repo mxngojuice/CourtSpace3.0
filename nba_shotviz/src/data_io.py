@@ -1,3 +1,4 @@
+%%writefile src/data_io.py
 """
 Data access helpers for Streamlit app:
 - Active players (cached)
@@ -64,32 +65,44 @@ def _attach_venue_and_opponent(player_df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+
 # Shot log loader
 @st.cache_data(show_spinner=True)
-def load_shotlog(player_name: str, season: str) -> pd.DataFrame:
+def load_shotlog(
+    player_name: str,
+    season: str,
+    season_type: str = "Regular Season",
+):
     """
-    Returns a DataFrame with at least columns:
-      ['LOC_X','LOC_Y','SHOT_MADE_FLAG', ...]
+    Returns (player_df, league_df) with at least:
+      player_df: ['LOC_X','LOC_Y','SHOT_MADE_FLAG', ...]
+      league_df: league averages
+    season_type can be "Regular Season", "Playoffs", etc.
     """
     name_to_id = get_name_to_id()
     pid = name_to_id.get(player_name)
     if pid is None:
         st.error(f"No data found for {player_name}")
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
     resp = shotchartdetail.ShotChartDetail(
         team_id=0,
         player_id=pid,
         season_nullable=season,
-        context_measure_simple="FGA"
+        season_type_all_star=season_type,   # <-- key line for playoffs
+        context_measure_simple="FGA",
     )
     league_df = resp.get_data_frames()[1]  # league avgs
     player_df = resp.get_data_frames()[0]  # player shots
-    player_df = _attach_venue_and_opponent(player_df) # teams
+    player_df = _attach_venue_and_opponent(player_df)  # teams
     return player_df, league_df
 
 # Multi shot log
-def load_shotlog_multi(player_name: str, seasons: list[str]):
+def load_shotlog_multi(
+    player_name: str,
+    seasons: list[str],
+    season_type: str = "Regular Season",
+):
     """
     Load and concatenate shot logs for a player over multiple seasons.
     Adds a SEASON column to each chunk before concatenating.
@@ -98,7 +111,7 @@ def load_shotlog_multi(player_name: str, seasons: list[str]):
     frames_p, frames_l = [], []
 
     for s in seasons:
-        p, l = load_shotlog(player_name, s)
+        p, l = load_shotlog(player_name, s, season_type=season_type)
         if not p.empty:
             p = p.assign(SEASON=s)
             frames_p.append(p)
@@ -106,6 +119,10 @@ def load_shotlog_multi(player_name: str, seasons: list[str]):
             l = l.assign(SEASON=s)
             frames_l.append(l)
 
+    player_df = pd.DataFrame() if not frames_p else pd.concat(frames_p, ignore_index=True)
+    league_df = pd.DataFrame() if not frames_l else pd.concat(frames_l, ignore_index=True)
+
+    return player_df, league_df
     player_df = pd.DataFrame() if not frames_p else pd.concat(frames_p, ignore_index=True)
     league_df = pd.DataFrame() if not frames_l else pd.concat(frames_l, ignore_index=True)
 
